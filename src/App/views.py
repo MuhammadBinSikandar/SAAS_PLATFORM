@@ -1,0 +1,48 @@
+from django.http import HttpResponse
+from django.shortcuts import render
+import pathlib
+from visits.models import PageVisit
+
+this_dir = pathlib.Path(__file__).resolve().parent
+
+def home_page_view(request, *args, **kwargs):
+    qs = PageVisit.objects.all()
+    page_qs = PageVisit.objects.filter(path=request.path)
+    my_title = "My Django Page"
+    my_context = {
+        "page_title": my_title,
+        "total_visit" : qs.count(),
+        "percent": (page_qs.count()/qs.count())*100,
+        "page_visit_count" : page_qs.count()
+        }
+    path = request.path
+    print("Path: ", path)
+    PageVisit.objects.create(path=request.path)
+    return render(request, "home.html", my_context)
+
+def about_page_view(request, *args, **kwargs):
+    my_title = "About Page"
+    my_context = {"page_title": my_title}
+    html_ = ""
+    return render(request, "home.html", my_context)
+
+def my_old_home_page_view(request, *args, **kwargs):
+    my_title = "My Django Page"
+    my_context = {"page_title": my_title}
+    # skipcq: PYL-C0209
+    html_ = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Document</title>
+    </head>
+    <body>
+        <h1>{page_title}Hello Amigo</h1>
+    </body>
+    </html>
+    """.format(**my_context)
+    # html_file_path = this_dir / "home.html"
+    # html_ = html_file_path.read_text()
+    return HttpResponse(html_)
