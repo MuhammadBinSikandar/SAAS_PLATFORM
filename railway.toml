@@ -1,7 +1,5 @@
 [build]
-builder = "DOCKERFILE"
-watchPatterns = ["requirements.txt","src/**","railway.toml","Dockerfile"]
-dockerfilePath = "./Dockerfile"
+builder = "NIXPACKS"
 
 [deploy]
 runtime = "V2"
