@@ -1,4 +1,8 @@
 # Byte-compiled / optimized / DLL files
+#ignore vendor static files
+src/staticfiles/vendors
+#ignore local static files root
+local-cdn/
 __pycache__/
 *.py[cod]
 *$py.class
