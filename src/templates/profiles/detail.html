@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block head_title %} Users - {{block.super}} {% endblock head_title %}
+{% block content %}
+    <p class="text-lg font-medium">{{instance.username}}</p>
+    {{perms}}
+    {% if perms.auth or is_me %}
+    {% if perms.auth.view_user or is_me%}
+    <div>
+        <p>Username: {{instance.username}}</p>
+        <p>Email: {{instance.email}}</p>
+        <p>First Name: {{instance.first_name}}</p>
+        <p>Last Name: {{instance.last_name}}</p>
+        <p>Is Active: {{instance.is_active}}</p>
+        <p>Is Staff: {{instance.is_staff}}</p>
+        <p>Is Superuser: {{instance.is_superuser}}</p>
+        <p>User groups: {{instance.user_groups}}</p>
+    </div>
+    {% else %}
+    <p>Sorry, you don't have permission to view users.</p>
+    {% endif %}
+    {% endif %}  
+{% endblock content %} 

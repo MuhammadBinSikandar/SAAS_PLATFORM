@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block head_title %} HomePage - {{block.super}} {% endblock head_title %}
+{% block content %}
+<h1>Enter the password</h1>
+<form method="POST">
+    {% csrf_token %}
+    <!-- The name is below is the same as in pw_protected_view of App/ views.py -->
+    <input type="password" name="code" placeholder="Enter the Code">
+    <button type="submit">Submit</button>
+{% endblock content %}
