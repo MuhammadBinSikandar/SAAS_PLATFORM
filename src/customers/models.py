@@ -18,20 +18,20 @@ class Customer(models.Model):
         return f"{self.user.username}"
     
     def save(self, *args, **kwargs):
-        if not self.stripe_id:
-            if self.init_email_confirmed and self.init_email:
-                email = self.init_email
-                if email != "" or email is not None:
-                    stripe_id = billing.create_customer(
-                        raw=False, 
-                        email=email, 
-                        metadata={
-                            "user_id": self.user.id, 
-                            "username": self.user.username
-                        }
-                    )
+        if not self.stripe_id and self.init_email_confirmed and self.init_email:
+            email = self.init_email
+            if email:
+                stripe_id = billing.create_customer(
+                    raw=False,
+                    email=email,
+                    metadata={
+                        "user_id": self.user.id,
+                        "username": self.user.username
+                    }
+                )
+                if stripe_id:
                     self.stripe_id = stripe_id
-        super().save(*args, **kwargs)
+                    self.save()  # Save again to persist the Stripe ID
 
 def allauth_user_signed_up_handler(request, user, *args , **kwargs):
     email = user.email
