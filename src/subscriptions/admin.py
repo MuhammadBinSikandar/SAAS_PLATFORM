@@ -6,7 +6,7 @@ from .models import Subscription, UserSubscription, SubscriptionPrice
 class SubscriptionPrice(admin.StackedInline):
     model = SubscriptionPrice
     extra = 0
-    can_delete = False
+    can_delete = True
 
 class SubscriptionAdmin(admin.ModelAdmin):
     inlines = [SubscriptionPrice]

@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block head_title %} Success Page - {{block.super}} {% endblock head_title %}
+{% block content %}
+<h1 class="text-lg font-semibold font-medium text-center">Thank you for your purchase!</h1>
+<div class="mb-12">
+    {{subscription}}
+</div>
+<div>
+    {{checkout}}
+</div>
+{% endblock content %}

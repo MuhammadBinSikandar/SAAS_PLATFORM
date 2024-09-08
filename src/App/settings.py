@@ -14,7 +14,6 @@ from pathlib import Path
 from decouple import config
 import dj_database_url
 
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -48,8 +47,8 @@ if all([ADMIN_USER_NAME, ADMIN_USER_EMAIL]):
 SECRET_KEY = config("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
 DEBUG = config("DJANGO_DEBUG", cast= bool)
+BASE_URL=config("BASE_URL", default="None")
 # print("DEBUG :", DEBUG, type(DEBUG) )
 
 
@@ -80,6 +79,7 @@ INSTALLED_APPS = [
     "profiles",
     "subscriptions",
     "customers",
+    "checkouts",
 
     #third party apps
     "allauth_ui",  

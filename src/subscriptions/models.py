@@ -5,6 +5,7 @@ from django.conf import settings
 import helpers.billing as billing
 import stripe
 from decouple import config
+from django.urls import reverse
 
 User = settings.AUTH_USER_MODEL
 ALLOW_CUSTOM_GROUPS = True
@@ -24,31 +25,30 @@ class Subscription(models.Model):
     """
     Subscription Plan = Stripe Product
     """
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=120)
     subtitle = models.TextField(blank=True, null=True)
     active = models.BooleanField(default=True)
-    groups = models.ManyToManyField(Group)
-    permissions = models.ManyToManyField(Permission, limit_choices_to={
-        "content_type__app_label": "subscriptions",
-        "codename__in": [x[0] for x in SUBSCRIPTION_PERMISSIONS]
+    groups = models.ManyToManyField(Group) # one-to-one
+    permissions =  models.ManyToManyField(Permission, limit_choices_to={
+        "content_type__app_label": "subscriptions", "codename__in": [x[0]for x in SUBSCRIPTION_PERMISSIONS]
         }
     )
-    stripe_id = models.CharField(max_length=100, blank=True, null=True)
+    stripe_id = models.CharField(max_length=120, null=True, blank=True)
 
-    order = models.IntegerField(default=-1, help_text="Display Order On the pricing page")
-    featured = models.BooleanField(default=False, help_text="This is the featured plan see the pricing page for more info")
+    order = models.IntegerField(default=-1, help_text='Ordering on Django pricing page')
+    featured = models.BooleanField(default=True, help_text='Featured on Django pricing page')
     updated = models.DateTimeField(auto_now=True)
     timestamp = models.DateTimeField(auto_now_add=True)
-    features = models.TextField(help_text="Features of the subscription plan", blank=True, null=True)
+    features = models.TextField(help_text="Features for pricing, seperated by new line", blank=True, null=True)
 
     def __str__(self):
         return f"{self.name}"
-    
+
     class Meta:
-        ordering = ["order", "featured", "-updated"]
+        ordering = ['order', 'featured', '-updated']
         permissions = SUBSCRIPTION_PERMISSIONS
-    
-    def get_featuress_as_list(self):
+
+    def get_features_as_list(self):
         if not self.features:
             return []
         return [x.strip() for x in self.features.split("\n")]
@@ -56,12 +56,12 @@ class Subscription(models.Model):
     def save(self, *args, **kwargs):
         if not self.stripe_id:
             stripe_id = billing.create_product(
-                        name=self.name, 
-                        metadata={
-                            "subscription_plan_id": self.id, 
-                        },
-                        raw=False
-                    )
+                    name=self.name, 
+                    metadata={
+                        "subscription_plan_id": self.id
+                    }, 
+                    raw=False
+                )
             self.stripe_id = stripe_id
         super().save(*args, **kwargs)
                     
@@ -72,45 +72,55 @@ class SubscriptionPrice(models.Model):
     """
     class IntervalChoices(models.TextChoices):
         MONTHLY = "month", "Monthly"
-        YEARLY = "year", "Yearly" 
+        YEARLY = "year", "Yearly"
+
     subscription = models.ForeignKey(Subscription, on_delete=models.SET_NULL, null=True)
-    stripe_id = models.CharField(max_length=100, blank=True, null=True)
-    interval = models.CharField(max_length=100, choices=IntervalChoices.choices, default=IntervalChoices.MONTHLY)
+    stripe_id = models.CharField(max_length=120, null=True, blank=True)
+    interval = models.CharField(max_length=120, 
+                                default=IntervalChoices.MONTHLY, 
+                                choices=IntervalChoices.choices
+                            )
     price = models.DecimalField(max_digits=10, decimal_places=2, default=99.99)
-    order = models.IntegerField(default=-1, help_text="Display Order On the pricing page")
-    featured = models.BooleanField(default=False, help_text="This is the featured plan see the pricing page for more info")
+    order = models.IntegerField(default=-1, help_text='Ordering on Django pricing page')
+    featured = models.BooleanField(default=True, help_text='Featured on Django pricing page')
     updated = models.DateTimeField(auto_now=True)
     timestamp = models.DateTimeField(auto_now_add=True)
 
-
     class Meta:
-        ordering = ["subscription__order" ,"order", "featured", "-updated"]
+        ordering = ['subscription__order', 'order', 'featured', '-updated']
+
+    def get_checkout_url(self):
+        return reverse("sub-price-checkout", 
+            kwargs = {"price_id": self.id}  
+            )
 
     @property
     def display_features_list(self):
         if not self.subscription:
             return []
-        return self.subscription.get_featuress_as_list()
-
+        return self.subscription.get_features_as_list()
+    
     @property
     def display_sub_name(self):
         if not self.subscription:
             return "Plan"
         return self.subscription.name
-    
+
     @property
     def display_sub_subtitle(self):
         if not self.subscription:
             return "Plan"
         return self.subscription.subtitle
-
+    
     @property
     def stripe_currency(self):
         return "usd"
     
     @property
     def stripe_price(self):
-        """ remove the decimal point and return the price in cents """
+        """
+        remove decimal places
+        """
         return int(self.price * 100)
 
     @property
@@ -120,23 +130,25 @@ class SubscriptionPrice(models.Model):
         return self.subscription.stripe_id
     
     def save(self, *args, **kwargs):
-        if (not self.stripe_id and self.product_stripe_id):
-            stripe.api_key = STRIPE_SECRET_KEY
+        if (not self.stripe_id and 
+            self.product_stripe_id is not None):
             stripe_id = billing.create_price(
-                product=self.product_stripe_id,
-                unit_amount=self.stripe_price,
                 currency=self.stripe_currency,
+                unit_amount=self.stripe_price,
                 interval=self.interval,
-                metadata={"subscription_plan_price_id": self.id},
+                product=self.product_stripe_id,
+                metadata={
+                        "subscription_plan_price_id": self.id
+                },
                 raw=False
             )
             self.stripe_id = stripe_id
-        super().save(*args,**kwargs)
+        super().save(*args, **kwargs)
         if self.featured and self.subscription:
             qs = SubscriptionPrice.objects.filter(
-                    subscription=self.subscription,
-                    interval=self.interval
-                ).exclude(id=self.id)
+                subscription=self.subscription,
+                interval=self.interval
+            ).exclude(id=self.id)
             qs.update(featured=False)
 
     
@@ -145,6 +157,17 @@ class UserSubscription(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE) # one to one relationship with the user
     subscription = models.ForeignKey(Subscription, on_delete=models.SET_NULL, null=True, blank=True) # foreign key relationship with the subscription
     active = models.BooleanField(default=True) # boolean field to check if the subscription is active or not
+    stripe_id = models.CharField(max_length=100, blank=True, null=True)
+    user_cancelled = models.BooleanField(default=False) # boolean field to check if the user has cancelled the subscription
+    current_period_start = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True) # datetime field to store the start date of the current period
+    current_period_end = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True) # datetime field to store the end date of the current period 
+    original_period_start = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True) # datetime field to store the start date of the original period
+
+    def save(self, *args, **kwargs):
+        if (self.original_period_start is None and 
+            self.current_period_start is not None):
+            self.original_period_start = self.current_period_start
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.user} - {self.subscription}"
