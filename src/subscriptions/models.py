@@ -154,6 +154,15 @@ class SubscriptionPrice(models.Model):
     
 
 class UserSubscription(models.Model):
+    class SubscriptionStatus(models.TextChoices):
+        ACTIVE = "active", "Active"
+        CANCELLED = "cancelled", "Cancelled"
+        INCOMPLETE = "incomplete", "Incomplete"
+        INCOMPLETE_EXPIRED = "incomplete_expired", "Incomplete Expired"
+        PAST_DUE = "past_due", "Past Due"
+        TRIALING = "trialing", "Trialing"
+        UNPAID = "unpaid", "Unpaid"
+        PAUSED = "paused", "Paused"
     user = models.OneToOneField(User, on_delete=models.CASCADE) # one to one relationship with the user
     subscription = models.ForeignKey(Subscription, on_delete=models.SET_NULL, null=True, blank=True) # foreign key relationship with the subscription
     active = models.BooleanField(default=True) # boolean field to check if the subscription is active or not
@@ -162,6 +171,16 @@ class UserSubscription(models.Model):
     current_period_start = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True) # datetime field to store the start date of the current period
     current_period_end = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True) # datetime field to store the end date of the current period 
     original_period_start = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True) # datetime field to store the start date of the original period
+    status = models.CharField(max_length=120, choices=SubscriptionStatus.choices, blank=True, null=True) # char field to store the status of the subscription
+
+    @property
+    def billing_cycle_anchor(self):
+        """
+        Optional Delay to start the new subscription
+        """
+        if not self.current_period_end:
+            return None    
+        return int(self.current_period_end.timestamp())
 
     def save(self, *args, **kwargs):
         if (self.original_period_start is None and 
