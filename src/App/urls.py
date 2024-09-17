@@ -43,4 +43,6 @@ urlpatterns = [
     path('checkout/sub-price/<int:price_id>/', checkouts_views.product_price_redirect_view, name='sub-price-checkout'),
     path('checkout/start/', checkouts_views.checkhout_redirect_view, name='stripe-checkout-start'),
     path('checkout/success/', checkouts_views.checkout_finalize_view, name='stripe-checkout-end'),
+    path('accounts/billing/', subscriptions_views.user_subscription_view, name='user_subscription'),
+    path('accounts/billing/cancel/', subscriptions_views.user_subscription_cancel_view, name='user_subscription_cancel'),
 ]
