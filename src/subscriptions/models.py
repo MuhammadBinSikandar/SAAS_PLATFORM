@@ -151,18 +151,18 @@ class SubscriptionPrice(models.Model):
             ).exclude(id=self.id)
             qs.update(featured=False)
 
-    
+
+class SubscriptionStatus(models.TextChoices):
+    ACTIVE = "active", "Active"
+    CANCELLED = "cancelled", "Cancelled"
+    INCOMPLETE = "incomplete", "Incomplete"
+    INCOMPLETE_EXPIRED = "incomplete_expired", "Incomplete Expired"
+    PAST_DUE = "past_due", "Past Due"
+    TRIALING = "trialing", "Trialing"
+    UNPAID = "unpaid", "Unpaid"
+    PAUSED = "paused", "Paused"
 
 class UserSubscription(models.Model):
-    class SubscriptionStatus(models.TextChoices):
-        ACTIVE = "active", "Active"
-        CANCELLED = "cancelled", "Cancelled"
-        INCOMPLETE = "incomplete", "Incomplete"
-        INCOMPLETE_EXPIRED = "incomplete_expired", "Incomplete Expired"
-        PAST_DUE = "past_due", "Past Due"
-        TRIALING = "trialing", "Trialing"
-        UNPAID = "unpaid", "Unpaid"
-        PAUSED = "paused", "Paused"
     user = models.OneToOneField(User, on_delete=models.CASCADE) # one to one relationship with the user
     subscription = models.ForeignKey(Subscription, on_delete=models.SET_NULL, null=True, blank=True) # foreign key relationship with the subscription
     active = models.BooleanField(default=True) # boolean field to check if the subscription is active or not
@@ -172,6 +172,31 @@ class UserSubscription(models.Model):
     current_period_end = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True) # datetime field to store the end date of the current period 
     original_period_start = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True) # datetime field to store the start date of the original period
     status = models.CharField(max_length=120, choices=SubscriptionStatus.choices, blank=True, null=True) # char field to store the status of the subscription
+    cancel_at_period_end = models.BooleanField(default=False) # boolean field to check if the subscription is cancelled at the end of the period
+
+    def get_absolute_url(self):
+        return reverse("user_subscription")
+    
+    def get_cancel_url(self):
+        return reverse("user_subscription_cancel")
+
+    @property
+    def is_active_status(self):
+        return self.status in [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING]
+
+    @property
+    def plan_name(self):
+        if not self.subscription:
+            return None
+        return self.subscription.name
+
+    def serialize(self):
+        return {
+            "plan_name": self.plan_name,
+            "status": self.status,
+            "current_period_start": self.current_period_start,
+            "current_period_end": self.current_period_end,
+        }
 
     @property
     def billing_cycle_anchor(self):
