@@ -4,6 +4,7 @@ from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 import helpers.billing as billing
 from django.contrib import messages
+from subscriptions import utils as subs_utils
 
 # Create your views here.
 @login_required
@@ -11,15 +12,10 @@ def user_subscription_view(request,):
     user_sub_obj, created = UserSubscription.objects.get_or_create(user=request.user)
     if request.method == "POST":
         print("Refresh Subscription")
-        if user_sub_obj.stripe_id:
-            sub_data = billing.get_subscription(user_sub_obj.stripe_id, raw=False)
-            for key, value in sub_data.items():
-                setattr(user_sub_obj, key, value)
-            user_sub_obj.save()
-        messages.success(request, "Subscription Has Been Activated!")
+        finished = subs_utils.refresh_active_users_subscription(user_ids=[request.user.id])
+        if finished:
+            messages.success(request, "Subscription Has Been Activated!")
         return redirect(user_sub_obj.get_absolute_url())
-    if user_sub_obj.stripe_id:
-        sub_data = billing.get_subscription(user_sub_obj.stripe_id, raw=False)
     return render(request, 'subscriptions/user_detail_view.html', {"subscription": user_sub_obj})
 
 @login_required
