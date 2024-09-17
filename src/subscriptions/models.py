@@ -4,8 +4,11 @@ from django.db.models.signals import post_save
 from django.conf import settings
 import helpers.billing as billing
 import stripe
+from django.db.models import Q
 from decouple import config
 from django.urls import reverse
+from django.utils import timezone
+import datetime
 
 User = settings.AUTH_USER_MODEL
 ALLOW_CUSTOM_GROUPS = True
@@ -20,7 +23,65 @@ SUBSCRIPTION_PERMISSIONS = [
             ("basic_ai", "Basic AI Perm"),
         ] 
 
-# Create your models here.
+class UserSuscriptionQuerySet(models.QuerySet):
+    
+    def by_range(self, days_start=7, days_end=120, verbose=True):
+        now = timezone.now()
+        days_start_from_now = now + datetime.timedelta(days=days_start)
+        days_end_from_now = now + datetime.timedelta(days=days_end)
+        range_start = days_start_from_now.replace(hour=0, minute=0, second=0, microsecond=0)
+        range_end = days_end_from_now.replace(hour=23, minute=59, second=59, microsecond=59)
+        if verbose:
+            print(f"Range is {range_start} to {range_end}")
+        return self.filter(
+            current_period_end__gte=range_start,
+            current_period_end__lte=range_end
+        )
+
+    def by_days_left(self, days_left=7):
+        now = timezone.now()
+        in_n_days = now + datetime.timedelta(days=days_left)
+        day_start = in_n_days.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = in_n_days.replace(hour=23, minute=59, second=59, microsecond=59)
+        return self.filter(
+            current_period_end__gte=day_start,
+            current_period_end__lte=day_end  
+        )
+    
+    def by_days_ago(self, days_ago=3):
+        now = timezone.now()
+        in_n_days = now - datetime.timedelta(days=days_ago)
+        day_start = in_n_days.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = in_n_days.replace(hour=23, minute=59, second=59, microsecond=59)
+        return self.filter(
+            current_period_end__gte=day_start,
+            current_period_end__lte=day_end  
+        )
+
+    def by_active_trailing(self):
+        active_qs_lookup = (
+            Q(status=SubscriptionStatus.ACTIVE) |
+            Q(status=SubscriptionStatus.TRIALING)
+        )
+        return self.filter(active_qs_lookup)
+
+    def by_user_ids(self, user_ids=[]):
+        if isinstance(user_ids, list):
+            return self.filter(user__id__in=user_ids)
+        elif isinstance(user_ids, int):
+            return self.filter(user__id=user_ids)
+        elif isinstance(user_ids, str):
+            return self.filter(user__id=int(user_ids))
+        return self
+
+class UserSubscriptionManager(models.Manager):
+    def get_queryset(self):
+        return UserSuscriptionQuerySet(self.model, using=self._db)
+
+    # def by_user_ids(self, user_ids=None):
+    #     return self.get_queryset().by_user_ids(user_ids=user_ids)
+    
+
 class Subscription(models.Model):
     """
     Subscription Plan = Stripe Product
@@ -173,6 +234,8 @@ class UserSubscription(models.Model):
     original_period_start = models.DateTimeField(auto_now=False, auto_now_add=False, blank=True, null=True) # datetime field to store the start date of the original period
     status = models.CharField(max_length=120, choices=SubscriptionStatus.choices, blank=True, null=True) # char field to store the status of the subscription
     cancel_at_period_end = models.BooleanField(default=False) # boolean field to check if the subscription is cancelled at the end of the period
+
+    objects = UserSubscriptionManager()
 
     def get_absolute_url(self):
         return reverse("user_subscription")
