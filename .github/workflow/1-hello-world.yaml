@@ -1,9 +1,10 @@
 name : 1 - Hello World Github Actions
 
 on : 
-  push : 
-    branch : 
-      - main
+  workflow_dispatch :
+    push : 
+      branch : 
+        - main
 
 jobs: 
   hello:
