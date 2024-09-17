@@ -12,14 +12,16 @@ def user_subscription_view(request,):
     user_sub_obj, created = UserSubscription.objects.get_or_create(user=request.user)
     if request.method == "POST":
         print("Refresh Subscription")
-        finished = subs_utils.refresh_active_users_subscription(user_ids=[request.user.id])
+        finished = subs_utils.refresh_active_users_subscription(user_ids=[request.user.id], active_only=False)
         if finished:
             messages.success(request, "Subscription Has Been Activated!")
+        else:
+            messages.error(request, "There was an error with your subscription. Please try again.")
         return redirect(user_sub_obj.get_absolute_url())
     return render(request, 'subscriptions/user_detail_view.html', {"subscription": user_sub_obj})
 
 @login_required
-def user_subscription_cancel_view(request,):
+def user_subscription_cancel_view(request):
     user_sub_obj, created = UserSubscription.objects.get_or_create(user=request.user)
     if request.method == "POST":
         print("Refresh Subscription")
