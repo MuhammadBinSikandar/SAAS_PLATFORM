@@ -1,0 +1,14 @@
+name : 1 - Hello World Github Actions
+
+on : 
+  workflow_dispatch :
+    push : 
+      branch : 
+        - main
+
+jobs: 
+  hello:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hello World
+        run: echo "Hello World"
