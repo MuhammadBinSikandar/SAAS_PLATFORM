@@ -26,9 +26,10 @@ from .views import (
     user_only_view,
     staff_only_view,
 )
+from landing import views as landing_views
 
 urlpatterns = [
-    path('', home_view, name='home'),
+    path('', landing_views.landing_dashboard_page_view, name='home'),
     path('login/', auth_views.login_view),
     path('accounts/', include('allauth.urls')), # accounts is the default path for allauth
     path('register/', auth_views.register_view),
